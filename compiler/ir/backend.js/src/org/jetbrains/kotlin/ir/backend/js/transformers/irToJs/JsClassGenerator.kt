@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.ir.backend.js.transformers.irToJs
 
 import org.jetbrains.kotlin.backend.common.onlyIf
+import org.jetbrains.kotlin.backend.common.utils.isBuiltinFunctionalTypeOrSubtype
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ClassKind
@@ -19,6 +20,7 @@ import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrClassSymbolImpl
 import org.jetbrains.kotlin.ir.types.classifierOrFail
 import org.jetbrains.kotlin.ir.types.isAny
+import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.isReal
 import org.jetbrains.kotlin.ir.util.resolveFakeOverride
@@ -163,7 +165,9 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
         JsArrayLiteral(
             irClass.superTypes.mapNotNull {
                 val symbol = it.classifierOrFail
-                if (symbol.isInterface) JsNameRef(context.getNameForSymbol(symbol)) else null
+                if (symbol.isInterface && !irClass.defaultType.isBuiltinFunctionalTypeOrSubtype()){
+                    JsNameRef(context.getNameForSymbol(symbol))
+                } else null
             }
         )
     )

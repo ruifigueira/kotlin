@@ -90,7 +90,6 @@ class JsIntrinsics(
     val jsInstanceOf = binOpBool("jsInstanceOf")
     val jsTypeOf = unOp("jsTypeOf", irBuiltIns.string)
 
-
     // Number conversions:
 
     val jsNumberToByte = getInternalFunction("numberToByte")
@@ -114,6 +113,14 @@ class JsIntrinsics(
     val jsCompareTo = getInternalFunction("compareTo")
     val jsEquals = getInternalFunction("equals")
 
+    // Coroutines
+
+    val jsCoroutineContext = context.symbolTable.referenceFunction(context.coroutineContextProperty.getter!!)
+
+    val jsGetContinuation = context.run {
+        val f = getInternalFunctions("getContinuation")
+        symbolTable.referenceSimpleFunction(f.single())
+    }
 
     val longConstructor =
         context.symbolTable.referenceConstructor(context.getClass(FqName("kotlin.Long")).constructors.single())

@@ -55,6 +55,10 @@ abstract class BasicIrBoxTest(
             "libraries/stdlib/js/irRuntime/exceptions.kt",
             "libraries/stdlib/js/irRuntime/internalAnnotations.kt",
             "libraries/stdlib/js/irRuntime/typeCheckUtils.kt",
+            "libraries/stdlib/js/irRuntime/coroutines.kt",
+            "libraries/stdlib/js/irRuntime/coroutineIntrinsics.kt",
+            "libraries/stdlib/js/irRuntime/coroutinesInternal.kt",
+            "libraries/stdlib/js/irRuntime/tests.kt",
             "core/builtins/native/kotlin/Number.kt",
             "core/builtins/native/kotlin/Comparable.kt"
         ).map { createPsiFile(it) }
