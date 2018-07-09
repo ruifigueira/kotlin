@@ -22,7 +22,6 @@ import org.jetbrains.kotlin.ir.SourceManager
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
-import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
@@ -249,12 +248,6 @@ class DumpIrTreeVisitor(out: Appendable) : IrElementVisitor<Unit, String> {
             expression.typeOperandClassifier.dumpDeclarationElementOrDescriptor("typeOperand")
             expression.acceptChildren(this, "")
         }
-    }
-
-    override fun visitSuspendableRoot(expression: IrSuspendableRoot, data: String) {
-        printer.println("StateVar = ${expression.suspensionPointId.descriptor.name}")
-        printer.println("ResultVar = ${expression.suspensionResult.descriptor.name}")
-        super.visitSuspendableRoot(expression, data)
     }
 
     override fun visitSuspensionPoint(expression: IrSuspensionPoint, data: String) {
