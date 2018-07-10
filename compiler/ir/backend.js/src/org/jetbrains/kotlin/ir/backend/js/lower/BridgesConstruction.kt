@@ -114,8 +114,7 @@ class BridgesConstruction(val context: JsIrBackendContext) : ClassLoweringPass {
             Annotations.EMPTY,
             bridge.name,
             CallableMemberDescriptor.Kind.SYNTHESIZED,
-            function.descriptor.source
-        )
+            function.descriptor.source)
 
         // TODO: should copy modality
         bridgeDescriptorForIrFunction.initialize(
@@ -137,15 +136,16 @@ class BridgesConstruction(val context: JsIrBackendContext) : ClassLoweringPass {
                 call.extensionReceiver = irGet(it)
             }
 
-            val toDrop = if (call.descriptor.isSuspend) 1 else 0
+            val toTake = irFunction.valueParameters.size - if (call.descriptor.isSuspend) 1 else 0
 
-            irFunction.valueParameters.dropLast(toDrop).mapIndexed { i, valueParameter ->
+            irFunction.valueParameters.subList(0, toTake).mapIndexed { i, valueParameter ->
                 call.putValueArgument(i, irGet(valueParameter))
                 +irReturn(call)
             }
         }.apply {
             irFunction.body = this
         }
+
         return irFunction
     }
 }
