@@ -17,7 +17,6 @@
 package org.jetbrains.kotlin.ir.backend.js.lower
 
 import org.jetbrains.kotlin.backend.common.ClassLoweringPass
-import org.jetbrains.kotlin.backend.common.bridges.Bridge
 import org.jetbrains.kotlin.backend.common.bridges.FunctionHandle
 import org.jetbrains.kotlin.backend.common.bridges.generateBridges
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
@@ -115,7 +114,8 @@ class BridgesConstruction(val context: JsIrBackendContext) : ClassLoweringPass {
             Annotations.EMPTY,
             bridge.name,
             CallableMemberDescriptor.Kind.SYNTHESIZED,
-            function.descriptor.source)
+            function.descriptor.source
+        )
 
         // TODO: should copy modality
         bridgeDescriptorForIrFunction.initialize(
@@ -141,11 +141,11 @@ class BridgesConstruction(val context: JsIrBackendContext) : ClassLoweringPass {
 
             irFunction.valueParameters.dropLast(toDrop).mapIndexed { i, valueParameter ->
                 call.putValueArgument(i, irGet(valueParameter))
-            +irReturn(call)
+                +irReturn(call)
+            }
         }.apply {
             irFunction.body = this
         }
-
         return irFunction
     }
 }
