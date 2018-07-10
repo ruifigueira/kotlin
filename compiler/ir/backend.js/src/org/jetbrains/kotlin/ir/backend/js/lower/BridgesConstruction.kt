@@ -140,8 +140,8 @@ class BridgesConstruction(val context: JsIrBackendContext) : ClassLoweringPass {
 
             irFunction.valueParameters.subList(0, toTake).mapIndexed { i, valueParameter ->
                 call.putValueArgument(i, irGet(valueParameter))
-                +irReturn(call)
             }
+            +irReturn(call)
         }.apply {
             irFunction.body = this
         }
