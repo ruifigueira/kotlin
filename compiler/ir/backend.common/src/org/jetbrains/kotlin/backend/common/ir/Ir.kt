@@ -45,6 +45,8 @@ abstract class Symbols<out T : CommonBackendContext>(val context: T, private val
 
     //abstract val areEqualByValue: List<IrFunctionSymbol>
 
+    val throwable = symbolTable.referenceClass(builtIns.throwable)
+
     abstract val areEqual: IrFunctionSymbol
 
     abstract val ThrowNullPointerException: IrFunctionSymbol
