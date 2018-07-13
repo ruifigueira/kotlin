@@ -39,3 +39,8 @@ open class ChainedPropertyBag private constructor(private val parent: ChainedPro
 
     fun <T> getOrNullRaw(key: TypedKey<T>): Any? = data[key] ?: parent?.getOrNullRaw(key) ?: key.defaultValue
 }
+
+fun chainPropertyBags(propertyBags: Iterable<ChainedPropertyBag>): ChainedPropertyBag =
+    propertyBags.fold(ChainedPropertyBag()) { res, next -> res.cloneWithNewParent(next) }
+
+fun chainPropertyBags(vararg propertyBags: ChainedPropertyBag): ChainedPropertyBag = chainPropertyBags(propertyBags.asIterable())
