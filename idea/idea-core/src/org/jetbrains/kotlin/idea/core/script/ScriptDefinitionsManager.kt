@@ -43,7 +43,6 @@ import org.jetbrains.kotlin.utils.PathUtil
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import org.jetbrains.kotlin.utils.addToStdlib.flattenTo
 import java.io.File
-import java.lang.reflect.InvocationTargetException
 import java.net.URLClassLoader
 import kotlin.concurrent.write
 import kotlin.script.dependencies.Environment
@@ -184,14 +183,13 @@ fun loadDefinitionsFromTemplates(
                     )
                 }
                 template.annotations.firstIsInstanceOrNull<kotlin.script.experimental.annotations.KotlinScript>() != null -> {
+                    val hostEnvironment = ScriptingEnvironment(
+                        ScriptingEnvironmentProperties.configurationDependencies to listOf(JvmDependency(classpath)),
+                        ScriptingEnvironmentProperties.getScriptingClass to JvmGetScriptingClass()
+                    )
                     KotlinScriptDefinitionAdapterFromNewAPI(
-                        ScriptDefinitionFromAnnotatedBaseClass(
-                            KotlinType(template),
-                            ScriptingEnvironment(
-                                ScriptingEnvironmentProperties.configurationDependencies to listOf(JvmDependency(classpath)),
-                                ScriptingEnvironmentProperties.getScriptingClass to JvmGetScriptingClass()
-                            )
-                        )
+                        ScriptDefinitionFromAnnotatedBaseClass(KotlinType(template), hostEnvironment),
+                        hostEnvironment
                     )
                 }
                 else -> {
