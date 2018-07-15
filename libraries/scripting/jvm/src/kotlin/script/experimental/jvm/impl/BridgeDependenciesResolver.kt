@@ -18,7 +18,6 @@ import kotlin.script.experimental.host.toScriptSource
 import kotlin.script.experimental.jvm.JvmDependency
 import kotlin.script.experimental.jvm.mapToLegacyScriptReportPosition
 import kotlin.script.experimental.jvm.mapToLegacyScriptReportSeverity
-import kotlin.script.experimental.util.chainPropertyBags
 
 class BridgeDependenciesResolver(
     val scriptDefinition: ScriptDefinition,

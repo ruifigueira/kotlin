@@ -13,6 +13,7 @@ import kotlin.script.experimental.api.*
 import kotlin.script.experimental.basic.AnnotationsBasedCompilationConfigurator
 import kotlin.script.experimental.basic.DummyEvaluator
 import kotlin.script.experimental.util.TypedKey
+import kotlin.script.experimental.util.chainPropertyBags
 
 private const val ERROR_MSG_PREFIX = "Unable to construct script definition: "
 
@@ -38,16 +39,15 @@ open class ScriptDefinitionFromAnnotatedBaseClass(
         baseClass.findAnnotation<KotlinScriptDefinition>()?.definition.takeIf { it != this::class }?.let { it.instantiateScriptHandler() }
 
     override val properties = run {
-        val baseProperties = explicitDefinition?.properties?.cloneWithNewParent(environment) ?: environment
-        val toAdd = arrayListOf<Pair<TypedKey<*>, Any>>()
+        val baseProperties = chainPropertyBags(explicitDefinition?.properties, environment)
+        val propertiesData = arrayListOf<Pair<TypedKey<*>, Any>>(ScriptDefinitionProperties.baseClass to baseClassType)
         baseClass.findAnnotation<KotlinScriptFileExtension>()?.let {
-            toAdd += ScriptDefinitionProperties.fileExtension to it.extension
+            propertiesData += ScriptDefinitionProperties.fileExtension to it.extension
         }
         if (baseProperties.getOrNull(ScriptDefinitionProperties.name) == null) {
-            toAdd += ScriptDefinitionProperties.name to mainAnnotation.name
+            propertiesData += ScriptDefinitionProperties.name to mainAnnotation.name
         }
-        if (toAdd.isEmpty()) baseProperties
-        else ScriptingEnvironment(baseProperties, toAdd)
+        ScriptingEnvironment(baseProperties, propertiesData)
     }
 
     override val compilationConfigurator =
