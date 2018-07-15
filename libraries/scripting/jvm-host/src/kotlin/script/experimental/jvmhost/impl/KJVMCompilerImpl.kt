@@ -82,11 +82,7 @@ class KJVMCompilerImpl : KJVMCompilerProxy {
             ResultWithDiagnostics.Failure(*messageCollector.diagnostics.toTypedArray(), *diagnostics)
 
         try {
-            val scriptCompileConfiguration = chainPropertyBags(
-                additionalConfiguration,
-                scriptDefinition.compilationConfigurator?.defaultConfiguration,
-                scriptDefinition.properties
-            )
+            val scriptCompileConfiguration = chainPropertyBags(additionalConfiguration, scriptDefinition.properties)
             var environment: KotlinCoreEnvironment? = null
             var updatedScriptCompileConfiguration = scriptCompileConfiguration
 
