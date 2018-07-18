@@ -7,8 +7,9 @@ package org.jetbrains.kotlin.idea.facet
 
 import com.intellij.facet.Facet
 import com.intellij.facet.FacetManager
-import com.intellij.facet.FacetTypeRegistry
 import com.intellij.openapi.module.Module
+import com.intellij.openapi.util.Key
+import org.jetbrains.kotlin.psi.UserDataProperty
 
 class KotlinFacet(
     module: Module,
@@ -22,3 +23,5 @@ class KotlinFacet(
         }
     }
 }
+
+var KotlinFacet.externalCompilerVersion: String? by UserDataProperty(Key.create("EXTERNAL_COMPILER_VERSION"))

@@ -57,7 +57,7 @@ fun KotlinFacetSettings.initializeIfNeeded(
     module: Module,
     rootModel: ModuleRootModel?,
     platformKind: TargetPlatformKind<*>? = null, // if null, detect by module dependencies
-    languageVersion: String? = null
+    compilerVersion: String? = null
 ) {
     val project = module.project
 
@@ -80,7 +80,7 @@ fun KotlinFacetSettings.initializeIfNeeded(
 
     if (shouldInferLanguageLevel) {
         languageLevel = (if (useProjectSettings) LanguageVersion.fromVersionString(commonArguments.languageVersion) else null)
-                ?: getDefaultLanguageLevel(module, languageVersion)
+                ?: getDefaultLanguageLevel(module, compilerVersion)
     }
 
     if (shouldInferAPILevel) {
@@ -162,6 +162,7 @@ fun KotlinFacet.configureFacet(
         }
         this.coroutineSupport = coroutineSupport
     }
+    externalCompilerVersion = compilerVersion
 }
 
 fun KotlinFacet.noVersionAutoAdvance() {
