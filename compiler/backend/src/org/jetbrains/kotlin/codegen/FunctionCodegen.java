@@ -218,7 +218,7 @@ public class FunctionCodegen {
                                   flags,
                                   asmMethod.getName(),
                                   asmMethod.getDescriptor(),
-                                  jvmSignature.getGenericsSignature(),
+                                  strategy.skipGenericSignature() ? null : jvmSignature.getGenericsSignature(),
                                   getThrownExceptions(functionDescriptor, typeMapper)
                         ),
                         flags, asmMethod.getName(),
@@ -1546,13 +1546,12 @@ public class FunctionCodegen {
 
     public void genSamDelegate(@NotNull FunctionDescriptor functionDescriptor, FunctionDescriptor overriddenDescriptor, StackValue field) {
         FunctionDescriptor delegatedTo = overriddenDescriptor.getOriginal();
-        JvmDeclarationOrigin declarationOrigin =
-                JvmDeclarationOriginKt.SamDelegation(functionDescriptor);
+        JvmDeclarationOrigin declarationOrigin = JvmDeclarationOriginKt.SamDelegation(functionDescriptor);
         genDelegate(
-                functionDescriptor, delegatedTo,
-                declarationOrigin,
+                functionDescriptor, delegatedTo, declarationOrigin,
                 (ClassDescriptor) overriddenDescriptor.getContainingDeclaration(),
-                field);
+                field, true
+        );
     }
 
     public void genDelegate(@NotNull FunctionDescriptor functionDescriptor, FunctionDescriptor overriddenDescriptor, StackValue field) {
@@ -1568,7 +1567,7 @@ public class FunctionCodegen {
     ) {
         JvmDeclarationOrigin declarationOrigin =
                 JvmDeclarationOriginKt.Delegation(DescriptorToSourceUtils.descriptorToDeclaration(delegatedTo), delegateFunction);
-        genDelegate(delegateFunction, delegatedTo, declarationOrigin, toClass, field);
+        genDelegate(delegateFunction, delegatedTo, declarationOrigin, toClass, field, false);
     }
 
     private void genDelegate(
@@ -1576,7 +1575,8 @@ public class FunctionCodegen {
             FunctionDescriptor delegatedTo,
             @NotNull JvmDeclarationOrigin declarationOrigin,
             ClassDescriptor toClass,
-            StackValue field
+            StackValue field,
+            boolean skipGenericSignature
     ) {
         generateMethod(
                 declarationOrigin, delegateFunction,
@@ -1630,6 +1630,11 @@ public class FunctionCodegen {
                     @Override
                     public boolean skipNotNullAssertionsForParameters() {
                         return false;
+                    }
+
+                    @Override
+                    public boolean skipGenericSignature() {
+                        return skipGenericSignature;
                     }
                 }
         );
