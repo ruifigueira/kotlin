@@ -21,7 +21,9 @@ import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiManager
 import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.psi.KtFile
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
@@ -29,6 +31,7 @@ import kotlin.concurrent.write
 interface ScriptDefinitionProvider {
     fun findScriptDefinition(fileName: String): KotlinScriptDefinition?
     fun isScript(fileName: String): Boolean
+    fun getDefaultScriptDefinition(): KotlinScriptDefinition
 
     companion object {
         fun getInstance(project: Project): ScriptDefinitionProvider =
@@ -41,13 +44,31 @@ fun ScriptDefinitionProvider.findScriptDefinition(file: VirtualFile): KotlinScri
     else findScriptDefinition(file.name)
 
 
-fun getScriptDefinition(file: VirtualFile, project: Project): KotlinScriptDefinition? =
-    if (file.isDirectory) null
-    else ScriptDefinitionProvider.getInstance(project).findScriptDefinition(file)
+fun getScriptDefinition(file: VirtualFile, project: Project): KotlinScriptDefinition? {
+    if (file.isDirectory) return null
+    val psiFile = PsiManager.getInstance(project).findFile(file)
+    if (psiFile != null) {
+        if (psiFile !is KtFile) return null
+        if (!psiFile.isScript()) {
+            return null
+        } else {
+            val cachedDefinition = psiFile.script?.kotlinScriptDefinition?.value
+            val definition = ScriptDefinitionProvider.getInstance(project).findScriptDefinition(file)
+            if (cachedDefinition != definition) {
+                throw IllegalStateException("Wrong script definition: should be ${definition}, but was $cachedDefinition")
+            }
+            return psiFile.script?.kotlinScriptDefinition?.value
+        }
+    }
+    
+    return ScriptDefinitionProvider.getInstance(project).findScriptDefinition(file)
+}
 
-fun getScriptDefinition(psiFile: PsiFile): KotlinScriptDefinition? =
-    if (psiFile.isDirectory) null
-    else ScriptDefinitionProvider.getInstance(psiFile.project).findScriptDefinition(psiFile.name)
+
+fun getScriptDefinition(psiFile: PsiFile): KotlinScriptDefinition? {
+    if (psiFile.isDirectory) return null
+    return (psiFile as? KtFile)?.script?.kotlinScriptDefinition?.value
+}
 
 abstract class LazyScriptDefinitionProvider : ScriptDefinitionProvider {
 
