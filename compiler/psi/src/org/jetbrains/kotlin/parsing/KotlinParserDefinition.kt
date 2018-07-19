@@ -48,7 +48,7 @@ class KotlinParserDefinition : ParserDefinition {
 
     override fun createLexer(project: Project): Lexer = KotlinLexer()
 
-    override fun createParser(project: Project): PsiParser = KotlinParser(project)
+    override fun createParser(project: Project): PsiParser = KotlinParser()
 
     override fun getFileNodeType(): IFileElementType = KtStubElementTypes.FILE
 
