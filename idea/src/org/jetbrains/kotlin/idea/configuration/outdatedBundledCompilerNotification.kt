@@ -19,7 +19,7 @@ import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
-import org.jetbrains.annotations.TestOnly
+import com.intellij.util.text.VersionComparatorUtil
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.idea.KotlinPluginUtil
@@ -71,45 +71,56 @@ fun notifyOutdatedBundledCompilerIfNecessary(project: Project) {
     )
 }
 
+private var alreadyNotified = HashMap<String, String>()
+
 fun createOutdatedBundledCompilerMessage(project: Project, bundledCompilerVersion: String = KotlinCompilerVersion.VERSION): String? {
     val bundledCompilerMajorVersion = MajorVersion.create(bundledCompilerVersion) ?: return null
 
-    val usedCompilerInfo = ArrayList<ModuleCompilerInfo>()
+    var maxCompilerInfo: ModuleCompilerInfo? = null
+    val newerModuleCompilerInfos = ArrayList<ModuleCompilerInfo>()
     for (module in ModuleManager.getInstance(project).modules) {
         val externalCompilerVersion = module.externalCompilerVersion ?: continue
         val externalCompilerMajorVersion = MajorVersion.create(externalCompilerVersion) ?: continue
+        val languageMajorVersion = MajorVersion.create(module.languageVersionSettings.languageVersion)
 
-        usedCompilerInfo.add(
-            ModuleCompilerInfo(
-                module,
-                externalCompilerVersion,
-                externalCompilerMajorVersion = externalCompilerMajorVersion,
-                languageMajorVersion = MajorVersion.create(module.languageVersionSettings.languageVersion)
+        if (externalCompilerMajorVersion > bundledCompilerMajorVersion && languageMajorVersion > bundledCompilerMajorVersion) {
+            val moduleCompilerInfo = ModuleCompilerInfo(module, externalCompilerVersion, externalCompilerMajorVersion, languageMajorVersion)
+
+            if (maxCompilerInfo == null ||
+                VersionComparatorUtil.COMPARATOR.compare(externalCompilerVersion, maxCompilerInfo.externalCompilerVersion) > 0
+            ) {
+                maxCompilerInfo = moduleCompilerInfo
+            }
+
+            newerModuleCompilerInfos.add(
+                moduleCompilerInfo
             )
-        )
+        }
+    }
+
+    if (maxCompilerInfo == null) {
+        return null
     }
 
     val selectedBaseModules = HashSet<Module>()
     val selectedNewerModulesInfos = ArrayList<ModuleCompilerInfo>()
     val moduleSourceRootMap = ModuleSourceRootMap(project)
-    for (moduleCompilerInfo in usedCompilerInfo) {
+    for (moduleCompilerInfo in listOf(maxCompilerInfo) + newerModuleCompilerInfos) {
         val languageMajorVersion = moduleCompilerInfo.languageMajorVersion
         val externalCompilerMajorVersion = moduleCompilerInfo.externalCompilerMajorVersion
 
-        if (externalCompilerMajorVersion > bundledCompilerMajorVersion && languageMajorVersion > bundledCompilerMajorVersion) {
-            val wholeModuleGroup = moduleSourceRootMap.getWholeModuleGroup(moduleCompilerInfo.module)
-            if (!selectedBaseModules.contains(wholeModuleGroup.baseModule)) {
-                // Remap to base module
-                selectedNewerModulesInfos.add(
-                    ModuleCompilerInfo(
-                        wholeModuleGroup.baseModule,
-                        moduleCompilerInfo.externalCompilerVersion,
-                        externalCompilerMajorVersion = externalCompilerMajorVersion,
-                        languageMajorVersion = languageMajorVersion
-                    )
+        val wholeModuleGroup = moduleSourceRootMap.getWholeModuleGroup(moduleCompilerInfo.module)
+        if (!selectedBaseModules.contains(wholeModuleGroup.baseModule)) {
+            // Remap to base module
+            selectedNewerModulesInfos.add(
+                ModuleCompilerInfo(
+                    wholeModuleGroup.baseModule,
+                    moduleCompilerInfo.externalCompilerVersion,
+                    externalCompilerMajorVersion = externalCompilerMajorVersion,
+                    languageMajorVersion = languageMajorVersion
                 )
-                selectedBaseModules.add(wholeModuleGroup.baseModule)
-            }
+            )
+            selectedBaseModules.add(wholeModuleGroup.baseModule)
         }
 
         if (selectedNewerModulesInfos.size > NUMBER_OF_MODULES_TO_SHOW) {
@@ -120,6 +131,14 @@ fun createOutdatedBundledCompilerMessage(project: Project, bundledCompilerVersio
     if (selectedNewerModulesInfos.isEmpty()) {
         return null
     }
+
+    val lastProjectNotified = alreadyNotified[project.name]
+    if (lastProjectNotified == maxCompilerInfo.externalCompilerVersion) {
+        if (!ApplicationManager.getApplication().isUnitTestMode) {
+            return null
+        }
+    }
+    alreadyNotified[project.name] = maxCompilerInfo.externalCompilerVersion
 
     var modulesStr =
         selectedNewerModulesInfos.take(NUMBER_OF_MODULES_TO_SHOW).joinToString(separator = "") {
@@ -145,7 +164,8 @@ private class ModuleCompilerInfo(
     val module: Module,
     val externalCompilerVersion: String,
     val externalCompilerMajorVersion: MajorVersion,
-    val languageMajorVersion: MajorVersion)
+    val languageMajorVersion: MajorVersion
+)
 
 private data class MajorVersion(val major: Int, val minor: Int) : Comparable<MajorVersion> {
     override fun compareTo(other: MajorVersion): Int {
