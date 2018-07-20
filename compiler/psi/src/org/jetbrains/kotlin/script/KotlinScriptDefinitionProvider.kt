@@ -29,7 +29,7 @@ import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 interface ScriptDefinitionProvider {
-    fun findScriptDefinition(fileName: String): KotlinScriptDefinition?
+    fun getScriptDefinition(fileName: String): KotlinScriptDefinition?
     fun isScript(fileName: String): Boolean
     fun getDefaultScriptDefinition(): KotlinScriptDefinition
 
@@ -39,29 +39,18 @@ interface ScriptDefinitionProvider {
     }
 }
 
-fun ScriptDefinitionProvider.findScriptDefinition(file: VirtualFile): KotlinScriptDefinition? =
-    if (file.isDirectory) null
-    else findScriptDefinition(file.name)
-
-
 fun getScriptDefinition(file: VirtualFile, project: Project): KotlinScriptDefinition? {
     if (file.isDirectory) return null
+
     val psiFile = PsiManager.getInstance(project).findFile(file)
     if (psiFile != null) {
-        if (psiFile !is KtFile) return null
-        if (!psiFile.isScript()) {
+        if (psiFile !is KtFile || !psiFile.isScript()) {
             return null
-        } else {
-            val cachedDefinition = psiFile.script?.kotlinScriptDefinition?.value
-            val definition = ScriptDefinitionProvider.getInstance(project).findScriptDefinition(file)
-            if (cachedDefinition != definition) {
-                throw IllegalStateException("Wrong script definition: should be ${definition}, but was $cachedDefinition")
-            }
-            return psiFile.script?.kotlinScriptDefinition?.value
         }
+        return psiFile.script?.kotlinScriptDefinition?.value
     }
     
-    return ScriptDefinitionProvider.getInstance(project).findScriptDefinition(file)
+    return ScriptDefinitionProvider.getInstance(project).getScriptDefinition(file.name)
 }
 
 
@@ -96,13 +85,13 @@ abstract class LazyScriptDefinitionProvider : ScriptDefinitionProvider {
         fileName.endsWith( it, ignoreCase = true)
     }
 
-    override fun findScriptDefinition(fileName: String): KotlinScriptDefinition? =
+    override fun getScriptDefinition(fileName: String): KotlinScriptDefinition? =
         if (nonScriptFileName(fileName)) null
         else lock.read {
             cachedDefinitions.firstOrNull { it.isScript(fileName) }
         }
 
-    override fun isScript(fileName: String) = findScriptDefinition(fileName) != null
+    override fun isScript(fileName: String) = getScriptDefinition(fileName) != null
 
     companion object {
         // TODO: find a common place for storing kotlin-related extensions and reuse values from it everywhere

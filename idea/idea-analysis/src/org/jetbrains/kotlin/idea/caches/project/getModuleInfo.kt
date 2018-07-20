@@ -93,7 +93,6 @@ private sealed class ModuleInfoCollector<out T>(
                 project,
                 virtualFile,
                 isLibrarySource,
-                isScript,
                 {
                     return@processor it ?: NotUnderContentRootModuleInfo
                 })
@@ -111,7 +110,6 @@ private sealed class ModuleInfoCollector<out T>(
                 project,
                 virtualFile,
                 isLibrarySource,
-                isScript,
                 { return@processor it })
         }
     )
@@ -128,7 +126,6 @@ private sealed class ModuleInfoCollector<out T>(
                     project,
                     virtualFile,
                     isLibrarySource,
-                    isScript,
                     { yieldIfNotNull(it) })
             }
         }
@@ -170,6 +167,15 @@ private fun <T> PsiElement.collectInfos(c: ModuleInfoCollector<T>): T {
     val virtualFile = containingFile.originalFile.virtualFile
             ?: return c.onFailure("Analyzing element of type ${this::class.java} in non-physical file $containingFile of type ${containingFile::class.java}\nText:\n$text")
 
+    if (containingKtFile?.isScript() == true) {
+        getScriptRelatedModuleInfo(project, virtualFile)?.let {
+            return c.onResult(it)
+        }
+        getScriptDefinition(virtualFile, project)?.let {
+            return c.onResult(ScriptModuleInfo(project, virtualFile, it))
+        }
+    }
+
     return c.virtualFileProcessor(
         project,
         virtualFile,
@@ -202,7 +208,6 @@ private inline fun <T> collectInfosByVirtualFile(
     project: Project,
     virtualFile: VirtualFile,
     treatAsLibrarySource: Boolean,
-    isScript: Boolean = getScriptDefinition(virtualFile, project) != null,
     onOccurrence: (IdeaModuleInfo?) -> T
 ): T {
 
@@ -211,12 +216,6 @@ private inline fun <T> collectInfosByVirtualFile(
     val moduleRelatedModuleInfo = getModuleRelatedModuleInfo(projectFileIndex, virtualFile)
     if (moduleRelatedModuleInfo != null) {
         onOccurrence(moduleRelatedModuleInfo)
-    }
-
-    if (moduleRelatedModuleInfo == null && isScript) {
-        getScriptDefinition(virtualFile, project)?.let {
-            onOccurrence(ScriptModuleInfo(project, virtualFile, it))
-        }
     }
 
     projectFileIndex.getOrderEntriesForFile(virtualFile).forEach {

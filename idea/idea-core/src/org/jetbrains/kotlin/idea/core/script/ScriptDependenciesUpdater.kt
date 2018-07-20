@@ -37,7 +37,7 @@ import org.jetbrains.kotlin.idea.core.script.dependencies.ScriptDependenciesLoad
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.NotNullableUserDataProperty
 import org.jetbrains.kotlin.script.ScriptDefinitionProvider
-import org.jetbrains.kotlin.script.findScriptDefinition
+import org.jetbrains.kotlin.script.getScriptDefinition
 import kotlin.script.experimental.dependencies.ScriptDependencies
 
 class ScriptDependenciesUpdater(
@@ -55,7 +55,7 @@ class ScriptDependenciesUpdater(
     fun getCurrentDependencies(file: VirtualFile): ScriptDependencies {
         cache[file]?.let { return it }
 
-        val scriptDef = scriptDefinitionProvider.findScriptDefinition(file) ?: return ScriptDependencies.Empty
+        val scriptDef = getScriptDefinition(file, project) ?: return ScriptDependencies.Empty
 
         FromFileAttributeScriptDependenciesLoader(file, scriptDef, project).updateDependencies()
         ScriptDependenciesLoader.updateDependencies(file, scriptDef, project, shouldNotifyRootsChanged = false)
@@ -75,8 +75,9 @@ class ScriptDependenciesUpdater(
 
             private fun runScriptDependenciesUpdateIfNeeded(file: VirtualFile) {
                 if (file.fileType != KotlinFileType.INSTANCE) return
-                val scriptDef = scriptDefinitionProvider.findScriptDefinition(file) ?: return
                 val ktFile = PsiManager.getInstance(project).findFile(file) as? KtFile ?: return
+
+                val scriptDef = getScriptDefinition(ktFile) ?: return
 
                 if (!ScriptDefinitionsManager.getInstance(project).isInExpectedLocation(ktFile, scriptDef)) return
                 ScriptDependenciesLoader.updateDependencies(file, scriptDef, project, shouldNotifyRootsChanged = true)
@@ -101,8 +102,8 @@ class ScriptDependenciesUpdater(
                     return
                 }
 
-                val scriptDef = scriptDefinitionProvider.findScriptDefinition(file) ?: return
                 val ktFile = PsiManager.getInstance(project).findFile(file) as? KtFile ?: return
+                val scriptDef = getScriptDefinition(ktFile) ?: return
 
                 if (!ScriptDefinitionsManager.getInstance(project).isInExpectedLocation(ktFile, scriptDef)) return
 

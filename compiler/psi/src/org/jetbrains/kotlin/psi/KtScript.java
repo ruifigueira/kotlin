@@ -34,7 +34,7 @@ import static kotlin.LazyThreadSafetyMode.PUBLICATION;
 public class KtScript extends KtNamedDeclarationStub<KotlinScriptStub> implements KtDeclarationContainer {
     public final Lazy<KotlinScriptDefinition> kotlinScriptDefinition = LazyKt.lazy(PUBLICATION, () -> {
         ScriptDefinitionProvider definitionsProvider = ScriptDefinitionProvider.Companion.getInstance(getProject());
-        KotlinScriptDefinition definition = definitionsProvider.findScriptDefinition(getContainingKtFile().getName());
+        KotlinScriptDefinition definition = definitionsProvider.getScriptDefinition(getContainingKtFile().getName());
         return definition != null ? definition : definitionsProvider.getDefaultScriptDefinition();
     });
 
