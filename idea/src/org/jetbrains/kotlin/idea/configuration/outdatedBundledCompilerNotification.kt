@@ -17,19 +17,19 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.idea.KotlinPluginUtil
 import org.jetbrains.kotlin.idea.actions.ConfigurePluginUpdatesAction
-import org.jetbrains.kotlin.idea.facet.KotlinFacet
-import org.jetbrains.kotlin.idea.facet.externalCompilerVersion
 import org.jetbrains.kotlin.idea.project.languageVersionSettings
-import org.jetbrains.kotlin.idea.versions.isSnapshot
+import org.jetbrains.kotlin.psi.UserDataProperty
 import javax.swing.event.HyperlinkEvent
+
+var Module.externalCompilerVersion: String? by UserDataProperty(Key.create("EXTERNAL_COMPILER_VERSION"))
 
 fun notifyOutdatedBundledCompilerIfNecessary(project: Project) {
     val bundledCompilerVersion = KotlinCompilerVersion.VERSION
-    if (!isSnapshot(bundledCompilerVersion)) return
 
     val pluginVersion = KotlinPluginUtil.getPluginVersion()
     if (pluginVersion == PropertiesComponent.getInstance(project).getValue(SUPPRESSED_OUTDATED_COMPILER_PROPERTY_NAME)) {
@@ -40,8 +40,7 @@ fun notifyOutdatedBundledCompilerIfNecessary(project: Project) {
 
     val usedCompilerInfo = ArrayList<ModuleCompilerInfo>()
     for (module in ModuleManager.getInstance(project).modules) {
-        val kotlinFacet = KotlinFacet.get(module) ?: continue
-        val externalCompilerVersion = kotlinFacet.externalCompilerVersion ?: continue
+        val externalCompilerVersion = module.externalCompilerVersion ?: continue
         val externalCompilerMajorVersion = MajorVersion.create(externalCompilerVersion) ?: continue
 
         usedCompilerInfo.add(
@@ -92,7 +91,7 @@ fun notifyOutdatedBundledCompilerIfNecessary(project: Project) {
         }
 
     if (selectedNewerModulesInfos.size > NUMBER_OF_MODULES_TO_SHOW) {
-        modulesStr += "<li> ... </li>"
+        modulesStr += "\n<li> ... </li>"
     }
 
     val message: String =
@@ -157,7 +156,7 @@ private data class MajorVersion(val major: Int, val minor: Int) : Comparable<Maj
 
         fun create(versionStr: String): MajorVersion? {
             if (versionStr == "@snapshot@") {
-                return MajorVersion(0, 0)
+                return MajorVersion(Int.MAX_VALUE, Int.MAX_VALUE)
             }
 
             val regex = "(\\d+)\\.(\\d+).*".toRegex()
