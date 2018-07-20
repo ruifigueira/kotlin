@@ -123,20 +123,22 @@ fun createOutdatedBundledCompilerMessage(project: Project, bundledCompilerVersio
 
     var modulesStr =
         selectedNewerModulesInfos.take(NUMBER_OF_MODULES_TO_SHOW).joinToString(separator = "") {
-            "<li>${it.module.name} (${it.externalCompilerVersion})</li>\n"
+            "<li>${it.module.name} (${it.externalCompilerVersion})</li><br/>"
         }
 
     if (selectedNewerModulesInfos.size > NUMBER_OF_MODULES_TO_SHOW) {
         modulesStr += "<li> ... </li>"
     }
 
-    modulesStr = modulesStr.removeSuffix("\n") // Insert \n for the `Event Log` view. Remove last '\n', to avoid additional empty line.
+    // <br/> are going to be replaced to \n for the `Event Log` view. Remove last <br/>, to avoid additional empty line.
+    modulesStr = modulesStr.removeSuffix("<br/>")
 
-    return "<p>The compiler bundled to Kotlin plugin ($bundledCompilerVersion) is older than external compiler used for building " +
-            "modules in the project:</p>" +
-            "<ul>$modulesStr</ul>" +
-            "<p>This may cause different set of errors and warnings reported in IDE.</p>" +
-            "<p><a href=\"update\">Update</a>  <a href=\"ignore\">Ignore</a></p>"
+    return """
+        <p>The compiler bundled to Kotlin plugin ($bundledCompilerVersion) is older than external compiler used for building modules:</p>
+        <ul>$modulesStr</ul>
+        <p>This may cause different set of errors and warnings reported in IDE.</p>
+        <p><a href="update">Update</a>  <a href="ignore">Ignore</a></p>"""
+        .trimIndent().lines().joinToString(separator = "").replace("<br/>", "\n")
 }
 
 private class ModuleCompilerInfo(

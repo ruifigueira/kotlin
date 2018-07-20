@@ -65,7 +65,7 @@ class GradleConfiguratorTest : GradleImportingTestCase() {
 
         Assert.assertEquals(
             """
-            <p>The compiler bundled to Kotlin plugin (1.0.0) is older than external compiler used for building modules in the project:</p>
+            <p>The compiler bundled to Kotlin plugin (1.0.0) is older than external compiler used for building modules:</p>
             <ul>
             <li>app (1.1.0)</li>
             </ul>
