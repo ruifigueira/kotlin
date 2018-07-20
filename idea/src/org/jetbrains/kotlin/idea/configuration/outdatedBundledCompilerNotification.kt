@@ -14,10 +14,12 @@ import com.intellij.notification.Notifications
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
+import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.idea.KotlinPluginUtil
@@ -29,14 +31,48 @@ import javax.swing.event.HyperlinkEvent
 var Module.externalCompilerVersion: String? by UserDataProperty(Key.create("EXTERNAL_COMPILER_VERSION"))
 
 fun notifyOutdatedBundledCompilerIfNecessary(project: Project) {
-    val bundledCompilerVersion = KotlinCompilerVersion.VERSION
-
     val pluginVersion = KotlinPluginUtil.getPluginVersion()
     if (pluginVersion == PropertiesComponent.getInstance(project).getValue(SUPPRESSED_OUTDATED_COMPILER_PROPERTY_NAME)) {
         return
     }
 
-    val bundledCompilerMajorVersion = MajorVersion.create(bundledCompilerVersion) ?: return
+    val message: String = createOutdatedBundledCompilerMessage(project) ?: return
+
+    if (ApplicationManager.getApplication().isUnitTestMode) {
+        return
+    }
+
+    Notifications.Bus.notify(
+        Notification(
+            OUTDATED_BUNDLED_COMPILER_GROUP_DISPLAY_ID, OUTDATED_BUNDLED_COMPILER_GROUP_DISPLAY_ID, message,
+            NotificationType.WARNING, NotificationListener { notification, event ->
+                if (event.eventType == HyperlinkEvent.EventType.ACTIVATED) {
+                    when {
+                        "update" == event.description -> {
+                            val action = ActionManager.getInstance().getAction(ConfigurePluginUpdatesAction.ACTION_ID)
+                            val dataContext = DataManager.getInstance().dataContextFromFocus.result
+                            val actionEvent = AnActionEvent.createFromAnAction(action, null, ActionPlaces.ACTION_SEARCH, dataContext)
+                            action.actionPerformed(actionEvent)
+                        }
+                        "ignore" == event.description -> {
+                            if (!project.isDisposed) {
+                                PropertiesComponent.getInstance(project).setValue(SUPPRESSED_OUTDATED_COMPILER_PROPERTY_NAME, pluginVersion)
+                            }
+                        }
+                        else -> {
+                            throw AssertionError()
+                        }
+                    }
+                    notification.expire()
+                }
+            }
+        ),
+        project
+    )
+}
+
+fun createOutdatedBundledCompilerMessage(project: Project, bundledCompilerVersion: String = KotlinCompilerVersion.VERSION): String? {
+    val bundledCompilerMajorVersion = MajorVersion.create(bundledCompilerVersion) ?: return null
 
     val usedCompilerInfo = ArrayList<ModuleCompilerInfo>()
     for (module in ModuleManager.getInstance(project).modules) {
@@ -82,7 +118,7 @@ fun notifyOutdatedBundledCompilerIfNecessary(project: Project) {
     }
 
     if (selectedNewerModulesInfos.isEmpty()) {
-        return
+        return null
     }
 
     var modulesStr =
@@ -91,43 +127,16 @@ fun notifyOutdatedBundledCompilerIfNecessary(project: Project) {
         }
 
     if (selectedNewerModulesInfos.size > NUMBER_OF_MODULES_TO_SHOW) {
-        modulesStr += "\n<li> ... </li>"
+        modulesStr += "<li> ... </li>"
     }
 
-    val message: String =
-        "<p>The compiler bundled to Kotlin plugin ($bundledCompilerVersion) is older than external compiler used for building " +
-                "modules in the project:</p>" +
-                "<ul>$modulesStr</ul>" +
-                "<p>This may cause different set of errors and warnings reported in IDE.</p>" +
-                "<p><a href=\"update\">Update plugin</a>  <a href=\"ignore\">Ignore</a></p>"
+    modulesStr = modulesStr.removeSuffix("\n") // Insert \n for the `Event Log` view. Remove last '\n', to avoid additional empty line.
 
-    Notifications.Bus.notify(
-        Notification(
-            OUTDATED_BUNDLED_COMPILER_GROUP_DISPLAY_ID, OUTDATED_BUNDLED_COMPILER_GROUP_DISPLAY_ID, message,
-            NotificationType.WARNING, NotificationListener { notification, event ->
-                if (event.eventType == HyperlinkEvent.EventType.ACTIVATED) {
-                    when {
-                        "update" == event.description -> {
-                            val action = ActionManager.getInstance().getAction(ConfigurePluginUpdatesAction.ACTION_ID)
-                            val dataContext = DataManager.getInstance().dataContextFromFocus.result
-                            val actionEvent = AnActionEvent.createFromAnAction(action, null, ActionPlaces.ACTION_SEARCH, dataContext)
-                            action.actionPerformed(actionEvent)
-                        }
-                        "ignore" == event.description -> {
-                            if (!project.isDisposed) {
-                                PropertiesComponent.getInstance(project).setValue(SUPPRESSED_OUTDATED_COMPILER_PROPERTY_NAME, pluginVersion)
-                            }
-                        }
-                        else -> {
-                            throw AssertionError()
-                        }
-                    }
-                    notification.expire()
-                }
-            }
-        ),
-        project
-    )
+    return "<p>The compiler bundled to Kotlin plugin ($bundledCompilerVersion) is older than external compiler used for building " +
+            "modules in the project:</p>" +
+            "<ul>$modulesStr</ul>" +
+            "<p>This may cause different set of errors and warnings reported in IDE.</p>" +
+            "<p><a href=\"update\">Update</a>  <a href=\"ignore\">Ignore</a></p>"
 }
 
 private class ModuleCompilerInfo(
