@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.resolve.lazy
 
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiRecursiveElementVisitor
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
@@ -38,6 +39,7 @@ class PartialBodyResolveFilter(
     private val statementMarks = StatementMarks()
 
     private val globalProbablyNothingCallableNames = ProbablyNothingCallableNames.getInstance(declaration.project)
+    private val globalProbablyContractedCallableNames = ProbablyContractedCallableNames.getInstance(declaration.project)
 
     private val contextNothingFunctionNames = HashSet<String>()
     private val contextNothingVariableNames = HashSet<String>()
@@ -169,6 +171,17 @@ class PartialBodyResolveFilter(
                 }
             }
 
+            override fun visitCallExpression(expression: KtCallExpression) {
+                val nameReference = expression.calleeExpression as? KtNameReferenceExpression ?: return
+                if (nameReference.getReferencedName() !in globalProbablyContractedCallableNames.functionNames()) return
+
+                val smartcastName = nameReference.smartCastExpressionName() ?: return
+
+                if (expression.mentionsName(filter)) {
+                    addPlace(smartcastName, expression)
+                }
+            }
+
             override fun visitBinaryWithTypeRHSExpression(expression: KtBinaryExpressionWithTypeRHS) {
                 expression.acceptChildren(this)
 
@@ -257,6 +270,26 @@ class PartialBodyResolveFilter(
         })
 
         return map
+    }
+
+    private fun KtExpression.mentionsName(filter: (SmartCastName) -> Boolean): Boolean {
+        var foundMentionedName: Boolean = false
+
+        val visitor = object : PsiRecursiveElementVisitor() {
+            override fun visitElement(element: PsiElement) {
+                if (foundMentionedName) return
+
+                if (element !is KtSimpleNameExpression) super.visitElement(element)
+
+                val smartCastNameOfThisElement = (element as? KtExpression)?.smartCastExpressionName() ?: return
+
+                if (filter(smartCastNameOfThisElement)) foundMentionedName = true
+            }
+        }
+
+        accept(visitor)
+
+        return foundMentionedName
     }
 
     /**

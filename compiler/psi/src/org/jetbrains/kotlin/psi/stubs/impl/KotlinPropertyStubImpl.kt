@@ -55,4 +55,5 @@ class KotlinPropertyStubImpl(
     override fun isExtension() = isExtension
     override fun hasReturnTypeRef() = hasReturnTypeRef
     override fun getName() = StringRef.toString(name)
+    override fun mayHaveContract(): Boolean = false
 }

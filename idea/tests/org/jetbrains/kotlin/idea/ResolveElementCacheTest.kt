@@ -19,15 +19,20 @@ package org.jetbrains.kotlin.idea
 import com.intellij.psi.PsiDocumentManager
 import junit.framework.TestCase
 import org.intellij.lang.annotations.Language
+import org.jetbrains.kotlin.config.KotlinFacetSettingsProvider
+import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
+import org.jetbrains.kotlin.idea.caches.project.productionSourceInfo
 import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.idea.caches.resolve.analyzeWithAllCompilerChecks
 import org.jetbrains.kotlin.idea.caches.resolve.getResolutionFacade
 import org.jetbrains.kotlin.idea.caches.resolve.unsafeResolveToDescriptor
+import org.jetbrains.kotlin.idea.compiler.IDELanguageSettingsProvider
 import org.jetbrains.kotlin.idea.imports.importableFqName
 import org.jetbrains.kotlin.idea.test.KotlinLightCodeInsightFixtureTestCase
 import org.jetbrains.kotlin.idea.test.KotlinLightProjectDescriptor
 import org.jetbrains.kotlin.idea.util.application.executeWriteCommand
+import org.jetbrains.kotlin.idea.util.module
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.findDescendantOfType
@@ -38,6 +43,7 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 import org.jetbrains.kotlin.test.util.elementByOffset
 import org.jetbrains.kotlin.types.typeUtil.containsError
+import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstance
 
 class ResolveElementCacheTest : KotlinLightCodeInsightFixtureTestCase() {
     override fun getProjectDescriptor() = KotlinLightProjectDescriptor.INSTANCE
@@ -467,6 +473,21 @@ class C(param1: String = "", param2: Int = 0) {
 
         val statement = (constructor.bodyExpression as KtBlockExpression).statements[0]
         TestCase.assertEquals(null, bindingContext[BindingContext.PROCESSED, statement])
+    }
+
+    fun testDontCommitTmp() {
+        val file = myFixture.configureByText("Test.kt", """
+        fun test(x: Any?) {
+            x as String
+
+            <caret>x.length
+        }
+        """) as KtFile
+
+        val nameReferenceExpression = myFixture.elementByOffset.getParentOfType<KtNameReferenceExpression>(false)!!
+
+
+        val bindingContext = nameReferenceExpression.analyze(BodyResolveMode.PARTIAL_FOR_COMPLETION)
     }
 
     fun testFullResolveMultiple() {
