@@ -265,18 +265,11 @@ internal class DelegatingDataFlowInfo private constructor(
 
         assert(other is DelegatingDataFlowInfo) { "Unknown DataFlowInfo type: " + other }
 
-        val resultNullabilityInfo = hashMapOf<DataFlowValue, Nullability>()
-        for ((key, otherFlags) in other.completeNullabilityInfo) {
-            val thisFlags = getCollectedNullability(key)
-            val flags = thisFlags.and(otherFlags)
-            if (flags != thisFlags) {
-                resultNullabilityInfo.put(key, flags)
-            }
-        }
+        val updatedNullabilityInfo = mergeNullabilityInfo(other, Nullability::and)
 
         val otherTypeInfo = other.completeTypeInfo
 
-        return create(this, resultNullabilityInfo, otherTypeInfo)
+        return create(this, updatedNullabilityInfo, otherTypeInfo)
     }
 
     private fun ImmutableSet<KotlinType>?.containsNothing() = this?.any { KotlinBuiltIns.isNothing(it) } ?: false
@@ -302,11 +295,7 @@ internal class DelegatingDataFlowInfo private constructor(
 
         assert(other is DelegatingDataFlowInfo) { "Unknown DataFlowInfo type: " + other }
 
-        val resultNullabilityInfo = hashMapOf<DataFlowValue, Nullability>()
-        for ((key, otherFlags) in other.completeNullabilityInfo) {
-            val thisFlags = getCollectedNullability(key)
-            resultNullabilityInfo.put(key, thisFlags.or(otherFlags))
-        }
+        val updatedNullabilityInfo = mergeNullabilityInfo(other, Nullability::or)
 
         val myTypeInfo = completeTypeInfo
         val otherTypeInfo = other.completeTypeInfo
@@ -321,7 +310,23 @@ internal class DelegatingDataFlowInfo private constructor(
                 )
             }
         }
-        return create(null, resultNullabilityInfo, newTypeInfoBuilder)
+        return create(null, updatedNullabilityInfo, newTypeInfoBuilder)
+    }
+
+    private inline fun mergeNullabilityInfo(
+        other: DataFlowInfo,
+        merge: (Nullability, Nullability) -> Nullability
+    ): Map<DataFlowValue, Nullability> {
+        val updateNullabilityInfo = hashMapOf<DataFlowValue, Nullability>()
+        for ((key, otherFlags) in other.completeNullabilityInfo) {
+            val thisFlags = getCollectedNullability(key)
+            val newValue = merge(thisFlags, otherFlags)
+            if (thisFlags != newValue) {
+                updateNullabilityInfo[key] = newValue
+            }
+        }
+
+        return updateNullabilityInfo
     }
 
     override fun toString() = if (completeTypeInfo.isEmpty && completeNullabilityInfo.isEmpty()) "EMPTY" else "Non-trivial DataFlowInfo"
